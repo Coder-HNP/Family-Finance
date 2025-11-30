@@ -1,29 +1,53 @@
-import { initializeApp } from 'firebase/app';
-import { getAuth, GoogleAuthProvider } from 'firebase/auth';
-import { getFirestore } from 'firebase/firestore';
+// firebase.js
+import { initializeApp } from "firebase/app";
+import { getAuth, GoogleAuthProvider } from "firebase/auth";
+import { getFirestore } from "firebase/firestore";
+import { getAnalytics, isSupported } from "firebase/analytics";
 
-// Firebase configuration from environment variables
+// -----------------------------
+// 🔥 Your Firebase Credentials
+// -----------------------------
 const firebaseConfig = {
-    apiKey: import.meta.env.VITE_FIREBASE_API_KEY,
-    authDomain: import.meta.env.VITE_FIREBASE_AUTH_DOMAIN,
-    projectId: import.meta.env.VITE_FIREBASE_PROJECT_ID,
-    storageBucket: import.meta.env.VITE_FIREBASE_STORAGE_BUCKET,
-    messagingSenderId: import.meta.env.VITE_FIREBASE_MESSAGING_SENDER_ID,
-    appId: import.meta.env.VITE_FIREBASE_APP_ID,
-    measurementId: import.meta.env.VITE_FIREBASE_MEASUREMENT_ID,
+    apiKey: "AIzaSyCJVqN2KD2hkzrUO0lhOA53UmuII4FrgII",
+    authDomain: "finance-tracker-203ab.firebaseapp.com",
+    projectId: "finance-tracker-203ab",
+    storageBucket: "finance-tracker-203ab.firebasestorage.app",
+    messagingSenderId: "159841303722",
+    appId: "1:159841303722:web:524754ae6b8637ca7a24d3",
+    measurementId: "G-2L78ME32DV",
 };
 
-// Initialize Firebase
+// -----------------------------
+// 🚀 Initialize Firebase
+// -----------------------------
 const app = initializeApp(firebaseConfig);
 
-// Initialize Firebase services
-export const auth = getAuth(app);
-export const db = getFirestore(app);
-export const googleProvider = new GoogleAuthProvider();
+// -----------------------------
+// 🔐 Authentication
+// -----------------------------
+const auth = getAuth(app);
 
-// Configure Google Provider
+// Google Login Provider
+const googleProvider = new GoogleAuthProvider();
 googleProvider.setCustomParameters({
-    prompt: 'select_account',
+    prompt: "select_account",
 });
 
-export default app;
+// -----------------------------
+// 📦 Firestore Database
+// -----------------------------
+const db = getFirestore(app);
+
+// -----------------------------
+// 📊 Analytics (works only in HTTPS / production)
+// -----------------------------
+let analytics = null;
+
+isSupported().then((yes) => {
+    if (yes) analytics = getAnalytics(app);
+});
+
+// -----------------------------
+// 📤 Export everything
+// -----------------------------
+export { app, auth, db, googleProvider, analytics };

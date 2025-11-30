@@ -1,5 +1,5 @@
 import { createContext, useContext, useState, useEffect } from 'react';
-import { collection, query, where, onSnapshot, orderBy } from 'firebase/firestore';
+import { collection, query, onSnapshot, orderBy, doc } from 'firebase/firestore';
 import { db } from '../utils/firebase';
 import { useAuth } from './AuthContext';
 
@@ -21,8 +21,9 @@ export const FinanceProvider = ({ children }) => {
     const [savingsGoals, setSavingsGoals] = useState([]);
     const [billReminders, setBillReminders] = useState([]);
     const [loading, setLoading] = useState(true);
+    const [error, setError] = useState(null);
 
-    // Subscribe to transactions
+    // Subscribe to transactions (per-user subcollection)
     useEffect(() => {
         if (!user) {
             setTransactions([]);
@@ -30,116 +31,176 @@ export const FinanceProvider = ({ children }) => {
             return;
         }
 
-        const q = query(
-            collection(db, 'transactions'),
-            where('userId', '==', user.uid),
-            orderBy('date', 'desc')
-        );
+        try {
+            // Using subcollection: users/{uid}/transactions
+            const userDocRef = doc(db, 'users', user.uid);
+            const transactionsRef = collection(userDocRef, 'transactions');
+            const q = query(transactionsRef, orderBy('date', 'desc'));
 
-        const unsubscribe = onSnapshot(q, (snapshot) => {
-            const data = snapshot.docs.map(doc => ({
-                id: doc.id,
-                ...doc.data(),
-            }));
-            setTransactions(data);
+            const unsubscribe = onSnapshot(
+                q,
+                (snapshot) => {
+                    const data = snapshot.docs.map(doc => ({
+                        id: doc.id,
+                        ...doc.data(),
+                    }));
+                    setTransactions(data);
+                    setLoading(false);
+                    setError(null);
+                },
+                (err) => {
+                    console.error('Error fetching transactions:', err);
+                    setError(`Failed to load transactions: ${err.message}`);
+                    setLoading(false);
+                }
+            );
+
+            return unsubscribe;
+        } catch (err) {
+            console.error('Error setting up transactions listener:', err);
+            setError(`Failed to initialize transactions: ${err.message}`);
             setLoading(false);
-        });
-
-        return unsubscribe;
+        }
     }, [user]);
 
-    // Subscribe to budgets
+    // Subscribe to budgets (per-user subcollection)
     useEffect(() => {
         if (!user) {
             setBudgets([]);
             return;
         }
 
-        const q = query(
-            collection(db, 'budgets'),
-            where('userId', '==', user.uid)
-        );
+        try {
+            const userDocRef = doc(db, 'users', user.uid);
+            const budgetsRef = collection(userDocRef, 'budgets');
+            const q = query(budgetsRef);
 
-        const unsubscribe = onSnapshot(q, (snapshot) => {
-            const data = snapshot.docs.map(doc => ({
-                id: doc.id,
-                ...doc.data(),
-            }));
-            setBudgets(data);
-        });
+            const unsubscribe = onSnapshot(
+                q,
+                (snapshot) => {
+                    const data = snapshot.docs.map(doc => ({
+                        id: doc.id,
+                        ...doc.data(),
+                    }));
+                    setBudgets(data);
+                    setError(null);
+                },
+                (err) => {
+                    console.error('Error fetching budgets:', err);
+                    setError(`Failed to load budgets: ${err.message}`);
+                }
+            );
 
-        return unsubscribe;
+            return unsubscribe;
+        } catch (err) {
+            console.error('Error setting up budgets listener:', err);
+            setError(`Failed to initialize budgets: ${err.message}`);
+        }
     }, [user]);
 
-    // Subscribe to recurring payments
+    // Subscribe to recurring payments (per-user subcollection)
     useEffect(() => {
         if (!user) {
             setRecurringPayments([]);
             return;
         }
 
-        const q = query(
-            collection(db, 'recurringPayments'),
-            where('userId', '==', user.uid),
-            orderBy('nextDate', 'asc')
-        );
+        try {
+            const userDocRef = doc(db, 'users', user.uid);
+            const recurringRef = collection(userDocRef, 'recurringPayments');
+            const q = query(recurringRef, orderBy('nextDate', 'asc'));
 
-        const unsubscribe = onSnapshot(q, (snapshot) => {
-            const data = snapshot.docs.map(doc => ({
-                id: doc.id,
-                ...doc.data(),
-            }));
-            setRecurringPayments(data);
-        });
+            const unsubscribe = onSnapshot(
+                q,
+                (snapshot) => {
+                    const data = snapshot.docs.map(doc => ({
+                        id: doc.id,
+                        ...doc.data(),
+                    }));
+                    setRecurringPayments(data);
+                    setError(null);
+                },
+                (err) => {
+                    console.error('Error fetching recurring payments:', err);
+                    setError(`Failed to load recurring payments: ${err.message}`);
+                }
+            );
 
-        return unsubscribe;
+            return unsubscribe;
+        } catch (err) {
+            console.error('Error setting up recurring payments listener:', err);
+            setError(`Failed to initialize recurring payments: ${err.message}`);
+        }
     }, [user]);
 
-    // Subscribe to savings goals
+    // Subscribe to savings goals (per-user subcollection)
     useEffect(() => {
         if (!user) {
             setSavingsGoals([]);
             return;
         }
 
-        const q = query(
-            collection(db, 'savingsGoals'),
-            where('userId', '==', user.uid)
-        );
+        try {
+            const userDocRef = doc(db, 'users', user.uid);
+            const goalsRef = collection(userDocRef, 'savingsGoals');
+            const q = query(goalsRef);
 
-        const unsubscribe = onSnapshot(q, (snapshot) => {
-            const data = snapshot.docs.map(doc => ({
-                id: doc.id,
-                ...doc.data(),
-            }));
-            setSavingsGoals(data);
-        });
+            const unsubscribe = onSnapshot(
+                q,
+                (snapshot) => {
+                    const data = snapshot.docs.map(doc => ({
+                        id: doc.id,
+                        ...doc.data(),
+                    }));
+                    setSavingsGoals(data);
+                    setError(null);
+                },
+                (err) => {
+                    console.error('Error fetching savings goals:', err);
+                    setError(`Failed to load savings goals: ${err.message}`);
+                }
+            );
 
-        return unsubscribe;
+            return unsubscribe;
+        } catch (err) {
+            console.error('Error setting up savings goals listener:', err);
+            setError(`Failed to initialize savings goals: ${err.message}`);
+        }
     }, [user]);
 
-    // Subscribe to bill reminders
+    // Subscribe to bill reminders (per-user subcollection)
     useEffect(() => {
         if (!user) {
             setBillReminders([]);
             return;
         }
 
-        const q = query(
-            collection(db, 'billReminders'),
-            where('userId', '==', user.uid),
-            orderBy('dueDate', 'asc')
-        );
+        try {
+            const userDocRef = doc(db, 'users', user.uid);
+            const remindersRef = collection(userDocRef, 'billReminders');
+            const q = query(remindersRef, orderBy('dueDate', 'asc'));
 
-        const unsubscribe = onSnapshot(q, (snapshot) => {
-            const data = snapshot.docs.map(doc => ({
-                id: doc.id,
-                ...doc.data(),
-            }));
-            setBillReminders(data);
-        });
+            const unsubscribe = onSnapshot(
+                q,
+                (snapshot) => {
+                    const data = snapshot.docs.map(doc => ({
+                        id: doc.id,
+                        ...doc.data(),
+                    }));
+                    setBillReminders(data);
+                    setError(null);
+                },
+                (err) => {
+                    console.error('Error fetching bill reminders:', err);
+                    setError(`Failed to load bill reminders: ${err.message}`);
+                }
+            );
 
-        return unsubscribe;
+            return unsubscribe;
+        } catch (err) {
+            console.error('Error setting up bill reminders listener:', err);
+            setError(`Failed to initialize bill reminders: ${err.message}`);
+        }
     }, [user]);
 
     const value = {
@@ -149,6 +210,7 @@ export const FinanceProvider = ({ children }) => {
         savingsGoals,
         billReminders,
         loading,
+        error,
     };
 
     return <FinanceContext.Provider value={value}>{children}</FinanceContext.Provider>;

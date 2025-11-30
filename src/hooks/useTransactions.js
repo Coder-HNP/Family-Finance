@@ -6,23 +6,24 @@ import { useAuth } from './useAuth';
  */
 export const useTransactions = () => {
     const { user } = useAuth();
-    const { addDocument, updateDocument, deleteDocument, loading, error } = useFirestore('transactions');
+    const { addDocument, updateDocument, deleteDocument, loading, error } = useFirestore('transactions', user?.uid);
 
     const addTransaction = async (transactionData) => {
         if (!user) return { success: false, error: 'User not authenticated' };
 
-        return await addDocument({
-            ...transactionData,
-            userId: user.uid,
-            familyId: user.familyId || null,
-        });
+        // No need to add userId to data - it's implicit in the subcollection path
+        return await addDocument(transactionData);
     };
 
     const updateTransaction = async (id, transactionData) => {
+        if (!user) return { success: false, error: 'User not authenticated' };
+
         return await updateDocument(id, transactionData);
     };
 
     const deleteTransaction = async (id) => {
+        if (!user) return { success: false, error: 'User not authenticated' };
+
         return await deleteDocument(id);
     };
 

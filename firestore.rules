@@ -1,0 +1,150 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    
+    // ============================================
+    // Helper Functions
+    // ============================================
+    
+    // Check if user is authenticated
+    function isAuthenticated() {
+      return request.auth != null;
+    }
+    
+    // Check if user owns the document
+    function isOwner(userId) {
+      return isAuthenticated() && request.auth.uid == userId;
+    }
+    
+    // Check if user is part of a family
+    function isFamilyMember(familyId) {
+      return isAuthenticated() && 
+        request.auth.uid in get(/databases/$(database)/documents/familyAccounts/$(familyId)).data.members;
+    }
+    
+    // ============================================
+    // User Documents
+    // ============================================
+    
+    match /users/{userId} {
+      // Users can read and write their own document
+      allow read, write: if isOwner(userId);
+      
+      // Allow creation during signup
+      allow create: if isAuthenticated() && request.auth.uid == userId;
+      
+      // ============================================
+      // Transactions Subcollection
+      // ============================================
+      match /transactions/{transactionId} {
+        // Owner can do everything
+        allow read, write, delete: if isOwner(userId);
+        
+        // Allow creation if authenticated and creating for self
+        allow create: if isAuthenticated() && request.auth.uid == userId;
+        
+        // Validate transaction data on write
+        allow write: if isOwner(userId) && 
+          request.resource.data.keys().hasAll(['type', 'amount', 'category', 'date']) &&
+          request.resource.data.type in ['income', 'expense'] &&
+          request.resource.data.amount is number &&
+          request.resource.data.amount >= 0;
+      }
+      
+      // ============================================
+      // Budgets Subcollection
+      // ============================================
+      match /budgets/{budgetId} {
+        allow read, write, delete: if isOwner(userId);
+        allow create: if isAuthenticated() && request.auth.uid == userId;
+        
+        // Validate budget data
+        allow write: if isOwner(userId) &&
+          request.resource.data.keys().hasAll(['category', 'limit', 'month']) &&
+          request.resource.data.limit is number &&
+          request.resource.data.limit >= 0;
+      }
+      
+      // ============================================
+      // Recurring Payments Subcollection
+      // ============================================
+      match /recurringPayments/{paymentId} {
+        allow read, write, delete: if isOwner(userId);
+        allow create: if isAuthenticated() && request.auth.uid == userId;
+        
+        // Validate recurring payment data
+        allow write: if isOwner(userId) &&
+          request.resource.data.keys().hasAll(['name', 'amount', 'frequency', 'nextDate']) &&
+          request.resource.data.amount is number &&
+          request.resource.data.amount >= 0 &&
+          request.resource.data.frequency in ['daily', 'weekly', 'monthly', 'yearly'];
+      }
+      
+      // ============================================
+      // Savings Goals Subcollection
+      // ============================================
+      match /savingsGoals/{goalId} {
+        allow read, write, delete: if isOwner(userId);
+        allow create: if isAuthenticated() && request.auth.uid == userId;
+        
+        // Validate savings goal data
+        allow write: if isOwner(userId) &&
+          request.resource.data.keys().hasAll(['name', 'targetAmount', 'currentAmount']) &&
+          request.resource.data.targetAmount is number &&
+          request.resource.data.currentAmount is number &&
+          request.resource.data.targetAmount >= 0 &&
+          request.resource.data.currentAmount >= 0;
+      }
+      
+      // ============================================
+      // Bill Reminders Subcollection
+      // ============================================
+      match /billReminders/{reminderId} {
+        allow read, write, delete: if isOwner(userId);
+        allow create: if isAuthenticated() && request.auth.uid == userId;
+        
+        // Validate bill reminder data
+        allow write: if isOwner(userId) &&
+          request.resource.data.keys().hasAll(['name', 'amount', 'dueDate']) &&
+          request.resource.data.amount is number &&
+          request.resource.data.amount >= 0;
+      }
+    }
+    
+    // ============================================
+    // Family Accounts (Future Feature)
+    // ============================================
+    
+    match /familyAccounts/{familyId} {
+      // Members can read family data
+      allow read: if isAuthenticated() && 
+        request.auth.uid in resource.data.members;
+      
+      // Admins can write
+      allow write: if isAuthenticated() && 
+        request.auth.uid in resource.data.admins;
+      
+      // Anyone authenticated can create a family
+      allow create: if isAuthenticated();
+      
+      // Family transactions (shared)
+      match /transactions/{transactionId} {
+        // All family members can read
+        allow read: if isAuthenticated() && 
+          request.auth.uid in get(/databases/$(database)/documents/familyAccounts/$(familyId)).data.members;
+        
+        // All family members can write
+        allow write: if isAuthenticated() && 
+          request.auth.uid in get(/databases/$(database)/documents/familyAccounts/$(familyId)).data.members;
+      }
+    }
+    
+    // ============================================
+    // Deny All Other Access
+    // ============================================
+    
+    match /{document=**} {
+      allow read, write: if false;
+    }
+  }
+}
